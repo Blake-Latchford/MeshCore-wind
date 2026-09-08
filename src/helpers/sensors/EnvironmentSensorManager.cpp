@@ -672,6 +672,8 @@ bool EnvironmentSensorManager::begin() {
     }
   }
 
+  next_available_channel = TELEM_CHANNEL_SELF + 1 + _active_sensor_count;
+
   return true;
 }
 
@@ -682,7 +684,7 @@ bool EnvironmentSensorManager::begin() {
 // ============================================================
 
 bool EnvironmentSensorManager::querySensors(uint8_t requester_permissions, CayenneLPP& telemetry) {
-  next_available_channel = TELEM_CHANNEL_SELF + 1;
+  uint8_t channel = TELEM_CHANNEL_SELF + 1;
 
   if (requester_permissions & TELEM_PERM_LOCATION && gps_active) {
     telemetry.addGPS(TELEM_CHANNEL_SELF, node_lat, node_lon, node_altitude);
@@ -690,8 +692,8 @@ bool EnvironmentSensorManager::querySensors(uint8_t requester_permissions, Cayen
 
   if (requester_permissions & TELEM_PERM_ENVIRONMENT) {
     for (int i = 0; i < _active_sensor_count; i++) {
-      _active_sensors[i].query(next_available_channel, _active_sensors[i].sub_channel, telemetry);
-      next_available_channel++;
+      _active_sensors[i].query(channel, _active_sensors[i].sub_channel, telemetry);
+      channel++;
     }
   }
 
