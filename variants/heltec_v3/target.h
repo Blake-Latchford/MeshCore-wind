@@ -8,6 +8,9 @@
 #include <helpers/AutoDiscoverRTCClock.h>
 #include <helpers/SensorManager.h>
 #include <helpers/sensors/EnvironmentSensorManager.h>
+#if ENV_INCLUDE_WIND
+  #include <helpers/sensors/WindSensor.h>
+#endif
 #ifdef DISPLAY_CLASS
   #include <helpers/ui/SSD1306Display.h>
   #include <helpers/ui/MomentaryButton.h>
@@ -17,6 +20,9 @@ extern HeltecV3Board board;
 extern WRAPPER_CLASS radio_driver;
 extern AutoDiscoverRTCClock rtc_clock;
 extern EnvironmentSensorManager sensors;
+#if ENV_INCLUDE_WIND
+extern WindSensor wind_sensor;
+#endif
 
 #ifdef DISPLAY_CLASS
   extern DISPLAY_CLASS display;

@@ -23,6 +23,10 @@ AutoDiscoverRTCClock rtc_clock(fallback_clock);
   EnvironmentSensorManager sensors;
 #endif
 
+#if ENV_INCLUDE_WIND
+  WindSensor wind_sensor;
+#endif
+
 #ifdef DISPLAY_CLASS
   DISPLAY_CLASS display;
   MomentaryButton user_btn(PIN_USER_BTN, 1000, true);
