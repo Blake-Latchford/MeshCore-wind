@@ -27,10 +27,8 @@ bool StrHelper::isBlank(const char* str) {
 }
 
 #include <Arduino.h>
-#if defined(__has_include)
-  #if __has_include(<api/itoa.h>)
-    #include <api/itoa.h>
-  #endif
+#if __has_include(<api/itoa.h>)
+  #include <api/itoa.h>
 #endif
 
 union int32_Float_t
