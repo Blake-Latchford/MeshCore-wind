@@ -1,6 +1,9 @@
 #include "SensorMesh.h"
 #include <helpers/RoutingPolicy.h>
 #include <helpers/sensors/LPPDataHelpers.h>
+#include <helpers/wind/ArgentWindSpeed.h>
+#include <helpers/wind/ArgentWindDirection.h>
+#include <helpers/wind/ArgentRain.h>
 
 /* ------------------------------ Config -------------------------------- */
 
@@ -160,6 +163,26 @@ uint8_t SensorMesh::handleRequest(ClientInfo* from, uint32_t sender_timestamp, u
 
     uint8_t tlen = telemetry.getSize();
     memcpy(&reply_data[4], telemetry.getBuffer(), tlen);
+
+#if ENV_INCLUDE_WIND
+    // Use LPPWriter since CayenneLPP has no add*() for the placeholder wind/rain types
+    if ((0xFF & perm_mask) & TELEM_PERM_ENVIRONMENT) {
+      LPPWriter wind_writer(&reply_data[4 + tlen], sizeof(reply_data) - 4 - tlen);
+      uint8_t wind_ch = sensors.getNextAvailableChannel();
+#if ENV_INCLUDE_WIND_DIRECTION
+      wind_writer.writeDirection(wind_ch, ArgentWindDirection::read());
+#endif
+#if ENV_INCLUDE_WIND_SPEED
+      wind_writer.writeWindSpeed(wind_ch, ArgentWindSpeed::readSustained());
+      wind_writer.writeWindGust(wind_ch, ArgentWindSpeed::readGust());
+#endif
+#if ENV_INCLUDE_RAIN
+      wind_writer.writeRain(wind_ch, ArgentRain::read());
+#endif
+      tlen += wind_writer.length();
+    }
+#endif
+
     return 4 + tlen;  // reply_len
   }
   if (req_type == REQ_TYPE_GET_AVG_MIN_MAX && (perms & PERM_ACL_ROLE_MASK) >= PERM_ACL_READ_ONLY) {

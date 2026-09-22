@@ -1,4 +1,8 @@
 #include "SensorMesh.h"
+#include <helpers/sensors/LPPDataHelpers.h>
+#include <helpers/wind/ArgentWindSpeed.h>
+#include <helpers/wind/ArgentWindDirection.h>
+#include <helpers/wind/ArgentRain.h>
 
 #ifdef DISPLAY_CLASS
   #include "UITask.h"
@@ -8,8 +12,13 @@
 class MyMesh : public SensorMesh {
 public:
   MyMesh(mesh::MainBoard& board, mesh::Radio& radio, mesh::MillisecondClock& ms, mesh::RNG& rng, mesh::RTCClock& rtc, mesh::MeshTables& tables)
-     : SensorMesh(board, radio, ms, rng, rtc, tables), 
+     : SensorMesh(board, radio, ms, rng, rtc, tables),
        battery_data(12*24, 5*60)    // 24 hours worth of battery data, every 5 minutes
+#if ENV_INCLUDE_WIND_SPEED
+// For Review: Is the extra 288 bytes per data type relevant?
+       , wind_speed_data(12*24, 5*60)
+       , wind_gust_data(12*24, 5*60)
+#endif
   {
   }
 
@@ -17,6 +26,10 @@ protected:
   /* ========================== custom logic here ========================== */
   Trigger low_batt, critical_batt;
   TimeSeriesData  battery_data;
+#if ENV_INCLUDE_WIND_SPEED
+  TimeSeriesData  wind_speed_data;
+  TimeSeriesData  wind_gust_data;
+#endif
 
   void onSensorDataRead() override {
     float batt_voltage = getVoltage(TELEM_CHANNEL_SELF);
@@ -24,16 +37,43 @@ protected:
     battery_data.recordData(getRTCClock(), batt_voltage);   // record battery
     alertIf(batt_voltage < 3.4f, critical_batt, HIGH_PRI_ALERT, "Battery is critical!");
     alertIf(batt_voltage < 3.6f, low_batt, LOW_PRI_ALERT, "Battery is low");
+
+#if ENV_INCLUDE_WIND_SPEED
+    // For review: Previously there was only one timestamp recorded for battery.
+    // Now all 3 recordings have different timestamps. Is that a problem?
+    wind_speed_data.recordData(getRTCClock(), ArgentWindSpeed::readSustained() / (float)LPP_WIND_SPEED_MULT);
+    wind_gust_data.recordData(getRTCClock(), ArgentWindSpeed::readGust() / (float)LPP_WIND_GUST_MULT);
+#endif
   }
 
   int querySeriesData(uint32_t start_secs_ago, uint32_t end_secs_ago, MinMaxAvg dest[], int max_num) override {
-    battery_data.calcMinMaxAvg(getRTCClock(), start_secs_ago, end_secs_ago, &dest[0], TELEM_CHANNEL_SELF, LPP_VOLTAGE);
-    return 1;
+    int n = 0;
+    battery_data.calcMinMaxAvg(getRTCClock(), start_secs_ago, end_secs_ago, &dest[n++], TELEM_CHANNEL_SELF, LPP_VOLTAGE);
+#if ENV_INCLUDE_WIND_SPEED
+    uint8_t wind_ch = sensors.getNextAvailableChannel();
+    wind_speed_data.calcMinMaxAvg(getRTCClock(), start_secs_ago, end_secs_ago, &dest[n++], wind_ch, LPP_WIND_SPEED);
+    wind_gust_data.calcMinMaxAvg(getRTCClock(), start_secs_ago, end_secs_ago, &dest[n++], wind_ch, LPP_WIND_GUST);
+#endif
+    return n;
   }
 
   bool handleCustomCommand(uint32_t sender_timestamp, char* command, char* reply) override {
     if (strcmp(command, "magic") == 0) {    // example 'custom' command handling
       strcpy(reply, "**Magic now done**");
+      return true;   // handled
+    }
+    if (strcmp(command, "wind") == 0) {    // dump live wind/rain readings, for bench testing
+      char* p = reply;
+#if ENV_INCLUDE_WIND_SPEED
+      p += sprintf(p, "speed=%u gust=%u ", ArgentWindSpeed::readSustained(), ArgentWindSpeed::readGust());
+#endif
+#if ENV_INCLUDE_WIND_DIRECTION
+      p += sprintf(p, "dir=%u ", ArgentWindDirection::read());
+#endif
+#if ENV_INCLUDE_RAIN
+      p += sprintf(p, "rain=%u ", ArgentRain::read());
+#endif
+      if (p == reply) strcpy(reply, "(no wind sensors configured)");
       return true;   // handled
     }
     return false;  // not handled
@@ -107,6 +147,15 @@ void setup() {
   command[0] = 0;
 
   sensors.begin();
+#if ENV_INCLUDE_WIND_SPEED
+  ArgentWindSpeed::begin();
+#endif
+#if ENV_INCLUDE_WIND_DIRECTION
+  ArgentWindDirection::begin();
+#endif
+#if ENV_INCLUDE_RAIN
+  ArgentRain::begin();
+#endif
 
   the_mesh.begin(fs);
 
@@ -157,6 +206,12 @@ void loop() {
 
   the_mesh.loop();
   sensors.loop();
+#if ENV_INCLUDE_WIND_SPEED
+  ArgentWindSpeed::loop();
+#endif
+#if ENV_INCLUDE_WIND_DIRECTION
+  ArgentWindDirection::loop();
+#endif
 #ifdef DISPLAY_CLASS
   ui_task.loop();
 #endif

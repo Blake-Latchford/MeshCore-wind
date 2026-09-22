@@ -30,6 +30,11 @@
 #define LPP_SWITCH 142              // 1 byte, 0/1
 #define LPP_POLYLINE 240            // 1 byte size, 1 byte delta factor, 3 byte lon/lat 0.0001° * factor, n (size-8) bytes deltas
 
+// from dz0ny/meshcore-sar, cayenne_lpp_parser.dart
+#define LPP_WIND_SPEED 129          // 2 bytes, 0.01 m/s, unsigned
+#define LPP_WIND_GUST 137           // 2 bytes, 0.01 m/s, unsigned
+#define LPP_RAIN 139                // 2 bytes, 0.1 mm, unsigned
+
 // Multipliers
 #define LPP_DIGITAL_INPUT_MULT 1
 #define LPP_DIGITAL_OUTPUT_MULT 1
@@ -58,6 +63,10 @@
 #define LPP_SWITCH_MULT 1
 #define LPP_CONCENTRATION_MULT 1
 #define LPP_COLOUR_MULT 1
+// For review: Are the units defined in CayenneLPP?
+#define LPP_WIND_SPEED_MULT 100
+#define LPP_WIND_GUST_MULT 100
+#define LPP_RAIN_MULT 10
 
 #define LPP_ERROR_OK 0
 #define LPP_ERROR_OVERFLOW 1
@@ -94,6 +103,9 @@ public:
       case LPP_CURRENT:
       case LPP_DIRECTION:
       case LPP_POWER:
+      case LPP_WIND_SPEED:
+      case LPP_WIND_GUST:
+      case LPP_RAIN:
         return 2;
     }
     return 1;
@@ -108,10 +120,13 @@ public:
       case LPP_VOLTAGE:
       case LPP_ANALOG_INPUT:
       case LPP_ANALOG_OUTPUT:
+      case LPP_WIND_SPEED:
+      case LPP_WIND_GUST:
         return 100;
       case LPP_TEMPERATURE:
       case LPP_BAROMETRIC_PRESSURE:
       case LPP_RELATIVE_HUMIDITY:
+      case LPP_RAIN:
         return 10;
     }
     return 1;
@@ -281,6 +296,46 @@ public:
       _buf[_len++] = alti >> 16;
       _buf[_len++] = alti >> 8;
       _buf[_len++] = alti;
+      return true;
+    }
+    return false;
+  }
+
+  bool writeDirection(uint8_t channel, uint16_t degrees) {
+    if (_len + 4 <= _max_len) {
+      _buf[_len++] = channel;
+      _buf[_len++] = LPP_DIRECTION;
+      write(degrees);
+      return true;
+    }
+    return false;
+  }
+
+  bool writeWindSpeed(uint8_t channel, uint16_t speed) {
+    if (_len + 4 <= _max_len) {
+      _buf[_len++] = channel;
+      _buf[_len++] = LPP_WIND_SPEED;
+      write(speed);
+      return true;
+    }
+    return false;
+  }
+
+  bool writeWindGust(uint8_t channel, uint16_t gust) {
+    if (_len + 4 <= _max_len) {
+      _buf[_len++] = channel;
+      _buf[_len++] = LPP_WIND_GUST;
+      write(gust);
+      return true;
+    }
+    return false;
+  }
+
+  bool writeRain(uint8_t channel, uint16_t tip_count) {
+    if (_len + 4 <= _max_len) {
+      _buf[_len++] = channel;
+      _buf[_len++] = LPP_RAIN;
+      write(tip_count);
       return true;
     }
     return false;
