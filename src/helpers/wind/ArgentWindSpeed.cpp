@@ -38,8 +38,8 @@ static void onAnemometerPulse() {
 }
 
 void ArgentWindSpeed::begin() {
-  pinMode(WIND_ANEMOMETER_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(WIND_ANEMOMETER_PIN), onAnemometerPulse, FALLING);
+  pinMode(WIND_ANEMOMETER_PIN, INPUT_PULLDOWN);
+  attachInterrupt(digitalPinToInterrupt(WIND_ANEMOMETER_PIN), onAnemometerPulse, RISING);
   g_last_tick_ms = millis();
   g_last_pulses = g_pulses;
 }
